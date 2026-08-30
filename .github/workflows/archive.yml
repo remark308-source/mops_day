@@ -1,0 +1,38 @@
+name: MOPS_Day_Monthly_Archive
+
+on:
+  schedule:
+    - cron: '0 13 * * *' # 台北時間每晚 21:00 檢查，僅當月最後一天實際執行存檔
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mops-day-archive
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 月末存檔
+        run: node scripts/archive.js
+
+      - name: 提交存檔結果
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          if git diff --cached --quiet; then
+            echo "没有变更，跳过提交"
+          else
+            git commit -m "月末存檔"
+            git push
+          fi

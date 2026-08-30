@@ -1,0 +1,42 @@
+name: MOPS 重大公告抓取
+
+on:
+  schedule:
+    # 台北时间 21:30 = UTC 13:30；台北 07:30 = UTC 23:30
+    - cron: '30 13 * * *'
+    - cron: '30 23 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mops-scrape
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 抓取公告并评分
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: node scripts/scrape.mjs
+
+      - name: 提交抓取结果
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          if git diff --cached --quiet; then
+            echo "没有数据变更，跳过提交"
+          else
+            git commit -m "update: 抓取结果 $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push
+          fi

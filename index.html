@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MOPS 重大公告雷達</title>
+<style>
+  :root {
+    --red: #e53935; --orange: #fb8c00; --yellow: #f9a825; --green: #43a047;
+    --bg: #0f1720; --card: #1a2530; --text: #e6edf3; --muted: #8b98a5;
+    --border: #2a3947;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif;
+    line-height: 1.6;
+  }
+  header { padding: 24px 16px 8px; text-align: center; }
+  header h1 { margin: 0 0 4px; font-size: 1.5rem; }
+  header p { margin: 0; color: var(--muted); font-size: 0.85rem; }
+  nav { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; padding: 16px; }
+  nav button {
+    background: var(--card); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 14px; cursor: pointer; font-size: 0.9rem;
+  }
+  nav button.active { border-color: #4a9eff; color: #4a9eff; }
+  main { max-width: 860px; margin: 0 auto; padding: 8px 16px 48px; }
+  .empty { text-align: center; color: var(--muted); padding: 48px 0; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px 18px; margin-bottom: 14px;
+  }
+  .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .company { font-weight: 700; font-size: 1.05rem; }
+  .company .code { color: var(--muted); font-weight: 400; margin-left: 6px; }
+  .badge { font-size: 0.85rem; padding: 2px 10px; border-radius: 999px; white-space: nowrap; }
+  .badge.red    { color: var(--red);    border: 1px solid var(--red); }
+  .badge.orange { color: var(--orange); border: 1px solid var(--orange); }
+  .badge.yellow { color: var(--yellow); border: 1px solid var(--yellow); }
+  .badge.green  { color: var(--green);  border: 1px solid var(--green); }
+  .meta { color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
+  .row { margin-top: 8px; font-size: 0.95rem; }
+  .row .label { color: var(--muted); margin-right: 6px; }
+  footer { text-align: center; color: var(--muted); font-size: 0.8rem; padding: 16px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📡 MOPS 重大公告雷達</h1>
+  <p>每日 21:30 / 07:30 自動抓取 · 關鍵字：自結 / 財務業務 / 營收</p>
+</header>
+<nav id="dayNav"></nav>
+<main id="list"><p class="empty">載入中…</p></main>
+<footer><span id="updatedAt"></span></footer>
+
+<script>
+const RATINGS = {
+  red:    '🔴 強烈買進',
+  orange: '🟠 建議買進',
+  yellow: '🟡 一般觀望',
+  green:  '🟢 需要小心',
+};
+const esc = (s) => String(s ?? '未提供').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+async function load() {
+  let data;
+  try {
+    data = await (await fetch('data/announcements.json', { cache: 'no-store' })).json();
+  } catch {
+    document.getElementById('list').innerHTML =
+      '<p class="empty">尚無資料，請等待 GitHub Actions 首次執行完成。</p>';
+    return;
+  }
+
+  const dayKeys = Object.keys(data.days || {}).sort().reverse();
+  if (dayKeys.length === 0) {
+    document.getElementById('list').innerHTML = '<p class="empty">本月尚無資料，請等下次抓取。</p>';
+    return;
+  }
+
+  document.getElementById('updatedAt').textContent =
+    `最後更新：${(data.updatedAt || '').replace('T', ' ').slice(0, 16)} UTC`;
+
+  const nav = document.getElementById('dayNav');
+  dayKeys.forEach((k, i) => {
+    const btn = document.createElement('button');
+    btn.textContent = k;
+    if (i === 0) btn.classList.add('active');
+    btn.onclick = () => {
+      nav.querySelectorAll('button').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderDay(data.days[k], k);
+    };
+    nav.appendChild(btn);
+  });
+  renderDay(data.days[dayKeys[0]], dayKeys[0]);
+}
+
+function renderDay(items, dayKey) {
+  const list = document.getElementById('list');
+  if (!items || items.length === 0) {
+    list.innerHTML = `<p class="empty">${esc(dayKey)}：今日無符合關鍵字的公告。</p>`;
+    return;
+  }
+  list.innerHTML = items
+    .map(
+      (a) => `
+    <div class="card">
+      <div class="card-head">
+        <div class="company">${esc(a.companyName)}<span class="code">${esc(a.companyId)}</span></div>
+        <span class="badge ${esc(a.rating)}">${RATINGS[a.rating] || esc(a.ratingLabel)}</span>
+      </div>
+      <div class="meta">發言：${esc(a.date)} ${esc(a.time)}</div>
+      <div class="row"><span class="label">📌 主旨</span>${esc(a.subject)}</div>
+      <div class="row"><span class="label">📑 符合條款</span>${esc(a.clause)}</div>
+      <div class="row"><span class="label">📝 說明</span>${esc(a.description)}</div>
+    </div>`
+    )
+    .join('');
+}
+
+load();
+</script>
+</body>
+</html>

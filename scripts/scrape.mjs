@@ -164,8 +164,84 @@ function mergeData(item, detailResponse) {
   };
 }
 
-// ---------- node11 四级评分（本地规则，可在此调整关键字） ----------
-function rateAnnouncement(text) {
+// ---------- node11 四级评分（LLM 分析，提示词与原 n8n Gemini 节点一致） ----------
+const LLM_BASE_URL = process.env.LLM_BASE_URL || 'https://api.b.ai/v1';
+const LLM_MODEL = process.env.LLM_MODEL || 'glm-5.3-flash';
+const LLM_SYSTEM_PROMPT = `你是一個專業的台灣股票分析師。請分析股票重大公告並提供簡潔的投資評分建議。(不用回應我,直接提供分析內容即可)
+**重要規則: **
+1.括號內數字代表負數，如(0.0.1) = -0.01
+2.分析要簡潔明確，重點突出，並且如果有提供月營收或月獲利情形，應以月營收和月獲利為主要評估標準，其次才是季營收和季獲利。
+3.使用評分機制建議：
+🔴 強烈買進：營收大幅成長且獲利顯著改善，虧轉盈或EPS大幅提升
+🟠 建議買進：營收穩定成長，獲利表現良好或持續改善
+🟡 一般觀望：營收獲利表現平穩，無明顯利多或利空
+🟢 需要小心：營收下滑、獲利惡化、盈轉虧或財務出現警訊
+
+分析格式:
+對每家公司提供：
+-評分等級(包含中文建議)+公司名稱與代號
+-關鍵財務數據 (營收年增率、EPS變化)
+-評分理由 (2~3行重點說明)
+
+
+評分標準:
+- 營收年增率 >20% 且獲利改善 = 🔴或🟡
+- 虧轉盈且營收成長 = 🔴
+- 營收成長但獲利下滑 = 🟡
+- EPS大幅衰退 >20% =🟢`;
+
+async function rateWithLLM(messageText) {
+  const apiKey = process.env.LLM_API_KEY;
+  // 未設定 API Key 時退回本地關鍵字評分
+  if (!apiKey) {
+    return ruleFallback(messageText);
+  }
+  try {
+    const res = await fetch(`${LLM_BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: LLM_MODEL,
+        messages: [
+          { role: 'system', content: LLM_SYSTEM_PROMPT },
+          { role: 'user', content: `請分析以下股票重大公告:${messageText}` },
+        ],
+      }),
+      signal: AbortSignal.timeout(120000),
+    });
+    if (!res.ok) {
+      console.error(`LLM API 失敗 HTTP ${res.status}，使用本地規則評分`);
+      return ruleFallback(messageText);
+    }
+    const data = await res.json();
+    const analysis = data.choices?.[0]?.message?.content || '';
+    if (!analysis) {
+      console.error('LLM 回應為空，使用本地規則評分');
+      return ruleFallback(messageText);
+    }
+    console.log(`LLM 評分完成（${LLM_MODEL}）`);
+    return { analysis };
+  } catch (err) {
+    console.error(`LLM 調用異常(${err.message})，使用本地規則評分`);
+    return ruleFallback(messageText);
+  }
+}
+
+// 從 LLM 分析文字中解析出評分等級（找不到時退回本地規則）
+function parseRatingFromAnalysis(analysis, text) {
+  if (analysis.includes('🔴')) return { key: 'red', label: '🔴 強烈買進' };
+  if (analysis.includes('🟠')) return { key: 'orange', label: '🟠 建議買進' };
+  if (analysis.includes('🟢')) return { key: 'green', label: '🟢 需要小心' };
+  if (analysis.includes('🟡')) return { key: 'yellow', label: '🟡 一般觀望' };
+  console.error('LLM 分析中未找到評分 emoji，使用本地規則評分');
+  return ruleFallback(text);
+}
+
+// 本地關鍵字評分（LLM 失敗時的兜底）
+function ruleFallback(text) {
   const NEGATIVE = ['虧損', '衰退', '減少', '下滑', '盈轉虧'];
   const TURNAROUND = ['虧轉盈', '轉虧為盈'];
   const GROWTH = ['成長', '增加', '提升'];
@@ -204,18 +280,15 @@ function formatMessage(a) {
   const clause = detailData[7] || '未提供';
   const description = detailData[9] || '未提供';
 
-  const rating = rateAnnouncement(`${subject} ${description}`);
-
   const message =
     `\n【${name} | ${code} 】\n` +
     `    發言日期: ${date}\n` +
     `    發言時間: ${time}\n` +
     `  📌 主旨：${subject}\n` +
     `  📑 符合條款：${clause}\n` +
-    `  📝 說明：${description}\n` +
-    `  ${rating.label}`;
+    `  📝 說明：${description}`;
 
-  return { message, rating };
+  return { message, subject, description };
 }
 
 const escapeHtml = (s) =>
@@ -308,7 +381,18 @@ async function main() {
     if (!merged) {
       console.log(`跳过（查無相符資料）：${item.companyId ?? '?'}`);
     } else {
-      const { message, rating } = formatMessage(merged);
+      const { message: base, subject, description } = formatMessage(merged);
+      // node11：LLM 四级评分（提示词同原 n8n），失败时退回本地规则
+      const llm = await rateWithLLM(base);
+      let rating, message;
+      if (llm.analysis) {
+        const analysis = llm.analysis.trim();
+        rating = parseRatingFromAnalysis(analysis, `${subject} ${description}`);
+        message = `${base}\n  🤖 評分分析：${analysis.replace(/\n+/g, '\n  ')}`;
+      } else {
+        rating = llm;
+        message = `${base}\n  ${rating.label}`;
+      }
       results.push({
         companyId: merged.companyId,
         companyName: merged.companyName,
@@ -319,6 +403,7 @@ async function main() {
         description: merged.description,
         rating: rating.key,
         ratingLabel: rating.label,
+        analysis: llm.analysis ? llm.analysis.trim() : '',
         message,
       });
       // node12：逐条推送（失败不中断）
@@ -340,4 +425,4 @@ if (isMain) {
   });
 }
 
-export { filterAnnouncements, mergeData, rateAnnouncement, formatMessage };
+export { filterAnnouncements, mergeData, ruleFallback, formatMessage };

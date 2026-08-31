@@ -25,25 +25,6 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Telegram Token 诊断（不显示 Token 本体）
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-        run: |
-          node -e '
-            const t = (process.env.TELEGRAM_BOT_TOKEN || "").trim();
-            console.log("token 长度:", t.length);
-            console.log("原始值含空格:", /\s/.test(process.env.TELEGRAM_BOT_TOKEN || ""));
-            console.log("原始值含换行:", /[\r\n]/.test(process.env.TELEGRAM_BOT_TOKEN || ""));
-            console.log("以 bot 开头:", /^bot/i.test(t));
-            console.log("符合标准格式 数字:串:", /^[0-9]{8,10}:[A-Za-z0-9_-]{30,}$/.test(t));
-            fetch("https://api.telegram.org/bot" + t + "/getMe")
-              .then(r => r.json()).then(j => {
-                console.log("getMe 结果:", JSON.stringify(j));
-                if (j.ok) console.log("→ Token 有效，bot 用户名: @" + j.result.username);
-                else console.log("→ Token 无效，请到 BotFather 重新复制");
-              });
-          '
-
       - name: 抓取公告并评分
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}

@@ -272,8 +272,15 @@ async function main() {
   await initSession();
   await sleep(500);
 
-  const listResponse = await fetchAnnouncementList();
-  const items = filterAnnouncements(listResponse);
+  // MOPS 清晨時段列表可能短暫為空，重試幾次再放棄
+  let items = [];
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const listResponse = await fetchAnnouncementList();
+    items = filterAnnouncements(listResponse);
+    if (items.length > 0 || attempt === 3) break;
+    console.log(`第 ${attempt} 次取得的公告列表為空，30 秒後重試`);
+    await sleep(30000);
+  }
   console.log(`公告总数已筛选：${items.length} 条`);
 
   const todayKey = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Taipei' });

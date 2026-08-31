@@ -424,4 +424,4 @@ if (isMain) {
   });
 }
 
-export { filterAnnouncements, mergeData, ruleFallback, formatMessage };
+export { initSession, fetchAnnouncementList, filterAnnouncements, fetchDetail, mergeData, formatMessage, rateWithLLM, parseRatingFromAnalysis, ruleFallback };

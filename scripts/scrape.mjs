@@ -242,6 +242,8 @@ async function sendTelegram(text) {
   if (!res.ok) {
     const body = await res.text();
     console.error(`Telegram 推送失败 HTTP ${res.status}: ${body}`);
+  } else {
+    console.log(`Telegram 推送成功 → ${TELEGRAM_CHAT_ID}`);
   }
 }
 

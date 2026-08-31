@@ -384,15 +384,14 @@ async function main() {
       const { message: base, subject, description } = formatMessage(merged);
       // node11：LLM 四级评分（提示词同原 n8n），失败时退回本地规则
       const llm = await rateWithLLM(base);
-      let rating, message;
-      if (llm.analysis) {
-        const analysis = llm.analysis.trim();
-        rating = parseRatingFromAnalysis(analysis, `${subject} ${description}`);
-        message = `${base}\n  🤖 評分分析：${analysis.replace(/\n+/g, '\n  ')}`;
-      } else {
-        rating = llm;
-        message = `${base}\n  ${rating.label}`;
-      }
+      const rating = llm.analysis
+        ? parseRatingFromAnalysis(llm.analysis.trim(), `${subject} ${description}`)
+        : llm;
+      // Telegram 只發公司抬頭 + LLM 分析，不再附爬下來的主旨/條款/說明
+      const header = `【${merged.companyName || '未提供'} | ${merged.companyId || '未提供'}】`;
+      const message = llm.analysis
+        ? `${header}\n${llm.analysis.trim()}`
+        : `${base}\n  ${rating.label}`;
       results.push({
         companyId: merged.companyId,
         companyName: merged.companyName,

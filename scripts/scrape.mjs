@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DATA_FILE = join(ROOT, 'data', 'announcements.json');
-const TELEGRAM_CHAT_ID = '-1003333218073';
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '-1003333218073';
 
 const BASE_HEADERS = {
   'User-Agent':

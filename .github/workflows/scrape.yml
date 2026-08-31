@@ -27,6 +27,7 @@ jobs:
       - name: 抓取公告并评分
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: node scripts/scrape.mjs
 
       - name: 提交抓取结果
@@ -35,8 +36,25 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/
           if git diff --cached --quiet; then
-            echo "没有数据变更，跳过提交"
+            echo "没有数据变更,跳过提交"
           else
             git commit -m "update: 抓取结果 $(date -u +'%Y-%m-%d %H:%M UTC')"
             git push
           fi
+
+  send-notification:
+    needs: scrape
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Send Telegram notification
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          message: |
+            📋 MOPS 公告抓取完成
+            Repository: ${{ github.repository }}
+            Job: ${{ needs.scrape.result }}
+            Run: ${{ github.run_id }}
+            Time: ${{ github.event.head_commit.timestamp || '手动触发' }}

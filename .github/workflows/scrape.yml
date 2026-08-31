@@ -40,6 +40,7 @@ jobs:
             echo "没有数据变更,跳过提交"
           else
             git commit -m "update: 抓取结果 $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git pull --rebase origin main || echo "rebase 失败,跳过"
             git push
           fi
 

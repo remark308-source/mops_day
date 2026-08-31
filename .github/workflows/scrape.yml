@@ -46,20 +46,3 @@ jobs:
             git pull --rebase origin main || echo "rebase 失败,跳过"
             git push
           fi
-
-  send-notification:
-    needs: scrape
-    runs-on: ubuntu-latest
-    if: always()
-    steps:
-      - name: Send Telegram notification
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          message: |
-            📋 MOPS 公告抓取完成
-            Repository: ${{ github.repository }}
-            Job: ${{ needs.scrape.result }}
-            Run: ${{ github.run_id }}
-            Time: ${{ github.event.head_commit.timestamp || '手动触发' }}

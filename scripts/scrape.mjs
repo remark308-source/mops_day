@@ -27,7 +27,8 @@ const BASE_HEADERS = {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // 網路層重試：MOPS 偶爾對 GitHub Actions 的 IP 掐連線（ECONNRESET 等），重試幾次再放棄
-async function fetchWithRetry(url, options = {}, retries = 3) {
+// 指數退避：10s → 20s → 40s → 60s，總覆蓋約 2.5 分鐘的封鎖窗口
+async function fetchWithRetry(url, options = {}, retries = 5) {
   let lastErr;
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
@@ -35,8 +36,9 @@ async function fetchWithRetry(url, options = {}, retries = 3) {
     } catch (err) {
       lastErr = err;
       if (attempt < retries) {
-        console.log(`網路錯誤(${err.cause?.code || err.code || err.message})，${attempt * 10} 秒後重試 ${attempt}/${retries - 1}`);
-        await sleep(attempt * 10000);
+        const wait = Math.min(attempt * 10000, 60000);
+        console.log(`網路錯誤(${err.cause?.code || err.code || err.message})，${Math.round(wait / 1000)} 秒後重試 ${attempt}/${retries - 1}`);
+        await sleep(wait);
       }
     }
   }

@@ -26,11 +26,28 @@ const BASE_HEADERS = {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// 網路層重試：MOPS 偶爾對 GitHub Actions 的 IP 掐連線（ECONNRESET 等），重試幾次再放棄
+async function fetchWithRetry(url, options = {}, retries = 3) {
+  let lastErr;
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await fetch(url, options);
+    } catch (err) {
+      lastErr = err;
+      if (attempt < retries) {
+        console.log(`網路錯誤(${err.cause?.code || err.code || err.message})，${attempt * 10} 秒後重試 ${attempt}/${retries - 1}`);
+        await sleep(attempt * 10000);
+      }
+    }
+  }
+  throw lastErr;
+}
+
 // ---------- node2 初始化 Session：访问首页拿 cookie ----------
 let cookieJar = '';
 
 async function initSession() {
-  const res = await fetch('https://mops.twse.com.tw/mops/', {
+  const res = await fetchWithRetry('https://mops.twse.com.tw/mops/', {
     headers: {
       ...BASE_HEADERS,
       Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -45,7 +62,7 @@ async function initSession() {
 
 // ---------- node3 取得公告列表 ----------
 async function fetchAnnouncementList() {
-  const res = await fetch('https://mops.twse.com.tw/mops/api/home_page/t05sr01_1', {
+  const res = await fetchWithRetry('https://mops.twse.com.tw/mops/api/home_page/t05sr01_1', {
     method: 'POST',
     headers: {
       ...BASE_HEADERS,
@@ -115,7 +132,7 @@ function filterAnnouncements(data) {
 
 // ---------- node5 取得公告詳細內容1（每笔间隔 500ms） ----------
 async function fetchDetail(item) {
-  const res = await fetch('https://mops.twse.com.tw/mops/api/t05sr01_1_detail', {
+  const res = await fetchWithRetry('https://mops.twse.com.tw/mops/api/t05sr01_1_detail', {
     method: 'POST',
     headers: {
       ...BASE_HEADERS,
@@ -376,11 +393,12 @@ async function main() {
 
   const results = [];
   for (const item of items) {
-    const detailResponse = await fetchDetail(item);
-    const merged = mergeData(item, detailResponse);
-    if (!merged) {
-      console.log(`跳过（查無相符資料）：${item.companyId ?? '?'}`);
-    } else {
+    try {
+      const detailResponse = await fetchDetail(item);
+      const merged = mergeData(item, detailResponse);
+      if (!merged) {
+        console.log(`跳过（查無相符資料）：${item.companyId ?? '?'}`);
+      } else {
       const { message: base, subject, description } = formatMessage(merged);
       // node11：LLM 四级评分（提示词同原 n8n），失败时退回本地规则
       const llm = await rateWithLLM(base);
@@ -407,6 +425,9 @@ async function main() {
       });
       // node12：逐条推送（失败不中断）
       await sendTelegram(escapeHtml(message));
+      }
+    } catch (err) {
+      console.error(`處理公告失敗（${item.companyId ?? '?'}，跳過）：${err.message}`);
     }
     await sleep(500); // node5 原限速
   }

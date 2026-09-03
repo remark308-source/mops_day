@@ -69,8 +69,10 @@ async function initSession() {
 }
 
 // ---------- node3 取得公告列表 ----------
+// MOPS 的 WAF 對部分端點（home_page/t05sr01_1、HTML 首頁）攔截資料中心 IP，
+// 但 mops 倉庫實測舊版查詢端點 t05sr01_1（非 home_page 前綴）不被攔，兩者回應結構相同。
 async function fetchAnnouncementList() {
-  const res = await fetchWithRetry('https://mops.twse.com.tw/mops/api/home_page/t05sr01_1', {
+  const res = await fetchWithRetry('https://mops.twse.com.tw/mops/api/t05sr01_1', {
     method: 'POST',
     headers: {
       ...BASE_HEADERS,

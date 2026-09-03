@@ -49,17 +49,23 @@ async function fetchWithRetry(url, options = {}, retries = 5) {
 let cookieJar = '';
 
 async function initSession() {
-  const res = await fetchWithRetry('https://mops.twse.com.tw/mops/', {
-    headers: {
-      ...BASE_HEADERS,
-      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    },
-    redirect: 'follow',
-    signal: AbortSignal.timeout(30000),
-  });
-  const cookies = res.headers.getSetCookie().map((c) => c.split(';')[0]);
-  cookieJar = cookies.join('; ');
-  console.log(`初始化 Session：HTTP ${res.status}，cookies: ${cookieJar || '无'}`);
+  // MOPS 對 HTML 首頁有防爬攔截（GitHub IP 常被掐線），但 API 端點不受影響。
+  // 此步驟僅為拿 cookie（實測通常為空），失敗不中斷，直接繼續抓 API。
+  try {
+    const res = await fetchWithRetry('https://mops.twse.com.tw/mops/', {
+      headers: {
+        ...BASE_HEADERS,
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(30000),
+    });
+    const cookies = res.headers.getSetCookie().map((c) => c.split(';')[0]);
+    cookieJar = cookies.join('; ');
+    console.log(`初始化 Session：HTTP ${res.status}，cookies: ${cookieJar || '无'}`);
+  } catch (err) {
+    console.log(`初始化 Session 失敗（${err.cause?.code || err.code || err.message}），跳過直接抓 API`);
+  }
 }
 
 // ---------- node3 取得公告列表 ----------

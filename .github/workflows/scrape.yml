@@ -25,30 +25,21 @@ jobs:
         with:
           node-version: '20'
 
-      - name: MOPS 端点诊断（临时）
-        run: >
-          node -e "
-          const UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-          const H={'User-Agent':UA,'Accept':'application/json, text/plain, */*','Content-Type':'application/json','Origin':'https://mops.twse.com.tw','Referer':'https://mops.twse.com.tw/mops/'};
-          const tests=[
-            ['GET 首頁','https://mops.twse.com.tw/mops/',{headers:{'User-Agent':UA,Accept:'text/html'},redirect:'follow'}],
-            ['POST t05sr01_1','https://mops.twse.com.tw/mops/api/t05sr01_1',{method:'POST',headers:H,body:JSON.stringify({count:'0',marketKind:''})}],
-            ['POST home_page/t05sr01_1','https://mops.twse.com.tw/mops/api/home_page/t05sr01_1',{method:'POST',headers:H,body:JSON.stringify({count:'0',marketKind:''})}],
-            ['POST t51sb10','https://mops.twse.com.tw/mops/api/t51sb10',{method:'POST',headers:H,body:JSON.stringify({count:'0',marketKind:''})}],
-          ];
-          (async()=>{ for(const [name,url,opt] of tests){
-            try{ const r=await fetch(url,{...opt,signal:AbortSignal.timeout(15000)}); console.log(name,'→ HTTP',r.status); }
-            catch(e){ console.log(name,'→ FAIL',e.cause?.code||e.message); }
-          }})();"
-
-      - name: 抓取公告并评分
+      - name: 抓取公告并评分（失败自动重试：MOPS 会间歇性封锁 runner IP，换 IP 重试即可）
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_BASE_URL: https://api.b.ai/v1
           LLM_MODEL: glm-5.3-flash
-        run: node scripts/scrape.mjs
+        run: |
+          ok=0
+          for i in 1 2 3 4; do
+            if node scripts/scrape.mjs; then ok=1; break; fi
+            echo "第 $i 次失敗（MOPS 可能封鎖了此 runner 的 IP），等 5 分鐘換環境重試"
+            [ "$i" -lt 4 ] && sleep 300
+          done
+          if [ "$ok" -ne 1 ]; then echo "4 次重試全部失敗"; exit 1; fi
 
       - name: 提交抓取结果
         run: |

@@ -11,7 +11,7 @@ crons = ["0 11 * * *", "0 15 * * *"]
 # 然後把下面的 id 換成實際值，或用 `wrangler.toml` 生成後的輸出
 [[kv_namespaces]]
 binding = "MOPS_KV"
-id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+id = "6d8f21f2ab854453b757001622c89654"
 
 [vars]
 # LLM_BASE_URL = "https://api.b.ai/v1"   # 可在 Dashboard 設

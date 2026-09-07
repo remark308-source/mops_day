@@ -1,0 +1,25 @@
+name = "mops-day"
+main = "worker/worker.js"
+compatibility_date = "2024-09-01"
+
+# Cron：UTC 11:00 / 15:00 = 台北 19:00 / 23:00
+[triggers]
+crons = ["0 11 * * *", "0 15 * * *"]
+
+# KV 用於批次進度（免費額度足夠）
+# 建立：wrangler kv namespace create MOPS_KV
+# 然後把下面的 id 換成實際值，或用 `wrangler.toml` 生成後的輸出
+[[kv_namespaces]]
+binding = "MOPS_KV"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+
+[vars]
+# LLM_BASE_URL = "https://api.b.ai/v1"   # 可在 Dashboard 設
+# LLM_MODEL = "glm-5.3-flash"            # 可在 Dashboard 設
+
+# Secrets（Dashboard → Settings → Variables → 加密）：
+#   TELEGRAM_BOT_TOKEN
+#   LLM_API_KEY
+#   GITHUB_TOKEN        # 需要 repo scope（contents:write）
+#   TELEGRAM_CHAT_ID    # 可選，預設 -1003333218073
+#   CRON_SECRET         # 可選，保護 /run 手動觸發

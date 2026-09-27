@@ -14,12 +14,12 @@ binding = "MOPS_KV"
 id = "6d8f21f2ab854453b757001622c89654"
 
 [vars]
-# LLM_BASE_URL = "https://api.b.ai/v1"   # 可在 Dashboard 設
-# LLM_MODEL = "glm-5.3-flash"            # 可在 Dashboard 設
+LLM_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
+LLM_MODEL = "gemini-3.8-flash"
 
 # Secrets（Dashboard → Settings → Variables → 加密）：
 #   TELEGRAM_BOT_TOKEN
-#   LLM_API_KEY
+#   LLM_API_KEY          # Google AI Studio 的 API Key（aistudio.google.com）
 #   GITHUB_TOKEN        # 需要 repo scope（contents:write）
 #   TELEGRAM_CHAT_ID    # 可選，預設 -1003333218073
 #   CRON_SECRET         # 可選，保護 /run 手動觸發

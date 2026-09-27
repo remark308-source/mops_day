@@ -145,20 +145,21 @@ function mergeData(item, detailResponse) {
 async function rateWithLLM(text, env) {
   if (!env.LLM_API_KEY) return ruleFallback(text);
   try {
-    const res = await fetch(`${env.LLM_BASE_URL || 'https://api.b.ai/v1'}/chat/completions`, {
+    // Google AI Studio (Gemini API)
+    const base = env.LLM_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta';
+    const model = env.LLM_MODEL || 'gemini-3.8-flash';
+    const res = await fetch(`${base}/models/${model}:generateContent`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.LLM_API_KEY}` },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.LLM_API_KEY },
       body: JSON.stringify({
-        model: env.LLM_MODEL || 'glm-5.3-flash',
-        messages: [
-          { role: 'system', content: LLM_SYSTEM_PROMPT },
-          { role: 'user', content: `請分析以下股票重大公告:${text}` },
-        ],
+        systemInstruction: { parts: [{ text: LLM_SYSTEM_PROMPT }] },
+        contents: [{ role: 'user', parts: [{ text: `請分析以下股票重大公告:${text}` }] }],
       }),
       signal: AbortSignal.timeout(25000),
     });
     const d = await res.json();
-    const analysis = d.choices?.[0]?.message?.content || '';
+    if (d.error) throw new Error(d.error.message || `HTTP ${res.status}`);
+    const analysis = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
     if (analysis) return { analysis: analysis.trim() };
   } catch (e) {
     console.log('LLM 失敗，用本地規則:', e.message);

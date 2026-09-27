@@ -192,8 +192,8 @@ function mergeData(item, detailResponse) {
 }
 
 // ---------- node11 四级评分（LLM 分析，提示词与原 n8n Gemini 节点一致） ----------
-const LLM_BASE_URL = process.env.LLM_BASE_URL || 'https://api.b.ai/v1';
-const LLM_MODEL = process.env.LLM_MODEL || 'glm-5.3-flash';
+const LLM_BASE_URL = process.env.LLM_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta';
+const LLM_MODEL = process.env.LLM_MODEL || 'gemini-3.8-flash';
 const LLM_SYSTEM_PROMPT = `你是一個專業的台灣股票分析師。請分析股票重大公告並提供簡潔的投資評分建議。(不用回應我,直接提供分析內容即可)
 **重要規則: **
 1.括號內數字代表負數，如(0.0.1) = -0.01
@@ -224,32 +224,29 @@ async function rateWithLLM(messageText) {
     return ruleFallback(messageText);
   }
   try {
-    const res = await fetch(`${LLM_BASE_URL}/chat/completions`, {
+    // Google AI Studio (Gemini API)
+    const base = process.env.LLM_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta';
+    const model = process.env.LLM_MODEL || 'gemini-3.8-flash';
+    const res = await fetch(`${base}/models/${model}:generateContent`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
+        'x-goog-api-key': apiKey,
       },
       body: JSON.stringify({
-        model: LLM_MODEL,
-        messages: [
-          { role: 'system', content: LLM_SYSTEM_PROMPT },
-          { role: 'user', content: `請分析以下股票重大公告:${messageText}` },
-        ],
+        systemInstruction: { parts: [{ text: LLM_SYSTEM_PROMPT }] },
+        contents: [{ role: 'user', parts: [{ text: `請分析以下股票重大公告:${messageText}` }] }],
       }),
       signal: AbortSignal.timeout(120000),
     });
-    if (!res.ok) {
-      console.error(`LLM API 失敗 HTTP ${res.status}，使用本地規則評分`);
-      return ruleFallback(messageText);
-    }
     const data = await res.json();
-    const analysis = data.choices?.[0]?.message?.content || '';
+    if (data.error) throw new Error(data.error.message || `HTTP ${res.status}`);
+    const analysis = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     if (!analysis) {
       console.error('LLM 回應為空，使用本地規則評分');
       return ruleFallback(messageText);
     }
-    console.log(`LLM 評分完成（${LLM_MODEL}）`);
+    console.log(`LLM 評分完成（${model}）`);
     return { analysis };
   } catch (err) {
     console.error(`LLM 調用異常(${err.message})，使用本地規則評分`);

@@ -2,9 +2,9 @@ name = "silent-art-20ff"
 main = "worker/worker.js"
 compatibility_date = "2024-09-01"
 
-# Cron：UTC 11:00 / 15:00 = 台北 19:00 / 23:00
+# Cron：UTC 00:00 / 13:30 = 台北 08:00 / 21:30
 [triggers]
-crons = ["0 11 * * *", "0 15 * * *"]
+crons = ["0 0 * * *", "30 13 * * *"]
 
 # KV 用於批次進度（免費額度足夠）
 # 建立：wrangler kv namespace create MOPS_KV

@@ -274,6 +274,7 @@ async function runBatch(env) {
     };
     if (items.length === 0) {
       state.data.days[todayKey] = [];
+      state.data.updatedAt = new Date().toISOString();
       state.done = true;
       await writeData(env, state.dataSha, state.data, `update: 無符合關鍵字公告 ${todayKey}`);
       if (env.MOPS_KV) await env.MOPS_KV.delete(KV_KEY);
@@ -324,6 +325,7 @@ async function runBatch(env) {
     // 重新取 sha（批次期間資料可能被別的運行更新過）
     const { sha } = await readData(env);
     state.data.days[todayKey] = state.results;
+    state.data.updatedAt = new Date().toISOString();
     await writeData(env, sha, state.data, `update: 抓取結果 ${todayKey}`);
     if (env.MOPS_KV) await env.MOPS_KV.delete(KV_KEY);
     out(`完成：${state.results.length} 條已寫入 ${todayKey}`);

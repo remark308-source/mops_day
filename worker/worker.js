@@ -1,5 +1,5 @@
 // MOPS 重大公告抓取 - Cloudflare Worker 版
-// Cron（台北 19:00 / 23:00）→ 抓 MOPS → LLM 評分 → Telegram 推送 → 寫回 GitHub（Pages 展示）
+// Cron（台北 08:00 / 21:30）→ 抓 MOPS → LLM 評分 → Telegram 推送 → 寫回 GitHub（Pages 展示）
 // 免費版 Worker 單次約 30 秒，公告多時分批處理：進度存 KV，靠 cron 每小時接續直到清空
 // 需要的 Secrets/Vars: TELEGRAM_BOT_TOKEN, LLM_API_KEY, GITHUB_TOKEN
 //   可選: TELEGRAM_CHAT_ID(預設群組), LLM_BASE_URL, LLM_MODEL, CRON_SECRET(手動觸發口令)

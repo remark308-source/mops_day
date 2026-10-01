@@ -143,29 +143,37 @@ function mergeData(item, detailResponse) {
 // ==================== LLM 評分 ====================
 
 async function rateWithLLM(text, env) {
-  if (!env.LLM_API_KEY) return ruleFallback(text);
-  try {
-    // NaraRouter（OpenAI 相容格式）
-    const base = env.LLM_BASE_URL || 'https://router.bynara.id/v1';
-    const model = env.LLM_MODEL || 'agnes-2.5-flash';
-    const res = await fetch(`${base}/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.LLM_API_KEY}` },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: LLM_SYSTEM_PROMPT },
-          { role: 'user', content: `請分析以下股票重大公告:${text}` },
-        ],
-      }),
-      signal: AbortSignal.timeout(25000),
-    });
-    const d = await res.json();
-    if (d.error) throw new Error(d.error.message || `HTTP ${res.status}`);
-    const analysis = d.choices?.[0]?.message?.content || '';
-    if (analysis) return { analysis: analysis.trim() };
-  } catch (e) {
-    console.log('LLM 失敗，用本地規則:', e.message);
+  // 支援多把 key（LLM_API_KEY、LLM_API_KEY_2…）：遇到 429（當日額度用完/限速）自動切下一把
+  const keys = [env.LLM_API_KEY, env.LLM_API_KEY_2].filter(Boolean);
+  if (keys.length === 0) return ruleFallback(text);
+  const base = env.LLM_BASE_URL || 'https://openrouter.ai/api/v1';
+  const model = env.LLM_MODEL || 'qwen/qwen3.8-27b:free';
+
+  for (let i = 0; i < keys.length; i++) {
+    try {
+      const res = await fetch(`${base}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${keys[i]}` },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: LLM_SYSTEM_PROMPT },
+            { role: 'user', content: `請分析以下股票重大公告:${text}` },
+          ],
+        }),
+        signal: AbortSignal.timeout(25000),
+      });
+      const d = await res.json();
+      if (res.status === 429) {
+        console.log(`LLM key ${i + 1} 額度用完（429），切換下一把`);
+        continue;
+      }
+      if (d.error) throw new Error(d.error.message || `HTTP ${res.status}`);
+      const analysis = d.choices?.[0]?.message?.content || '';
+      if (analysis) return { analysis: analysis.trim() };
+    } catch (e) {
+      console.log(`LLM key ${i + 1} 失敗: ${e.message}`);
+    }
   }
   return ruleFallback(text);
 }

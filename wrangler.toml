@@ -19,7 +19,8 @@ LLM_MODEL = "qwen/qwen3.8-27b:free"
 
 # Secrets（Dashboard → Settings → Variables → 加密）：
 #   TELEGRAM_BOT_TOKEN
-#   LLM_API_KEY          # OpenRouter 的 API Key（sk-or-v1- 開頭；free 模型每天 50 次，未過 429 就夠用）
+#   LLM_API_KEY          # OpenRouter 帳號1的 Key（sk-or-v1- 開頭）
+#   LLM_API_KEY_2        # 可選，OpenRouter 帳號2的 Key（帳號1額度用完自動切換）
 #   GITHUB_TOKEN        # 需要 repo scope（contents:write）
 #   TELEGRAM_CHAT_ID    # 可選，預設 -1003333218073
 #   CRON_SECRET         # 可選，保護 /run 手動觸發

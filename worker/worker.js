@@ -198,6 +198,23 @@ function parseRating(analysis, text) {
   return ruleFallback(text);
 }
 
+// 從公告說明中抽出含關鍵數字的行（LLM 失敗時的精簡兜底用）
+function figuresBlock(description) {
+  if (!description) return '';
+  const SKIP = /事實發生日|公司名稱|與公司關係|持股比例|發生緣由|因應措施|應敘明|查證|記者會|精華版|營運概況|財務報表|IFRS|證券交易法|基本資料|觀測站|路徑|自願性公告/;
+  const HAS_NUM = /\d+(\.\d+)?\s*(%|％)|\d[\d,.]*\s*(億|百萬|仟萬|萬元)|營業收入|稅前淨利|本期淨利|每股盈餘/;
+  const lines = [];
+  for (const raw of String(description).split(/[\n；;]/)) {
+    const line = raw.trim().replace(/^\d+[.、]\s*/, '');
+    if (line.length < 5 || SKIP.test(line)) continue;
+    if (HAS_NUM.test(line)) {
+      lines.push(`· ${line}`);
+      if (lines.length >= 4) break;
+    }
+  }
+  return lines.length ? '\n' + lines.join('\n') : '';
+}
+
 // ==================== Telegram ====================
 
 async function sendTelegram(text, env) {
@@ -303,10 +320,14 @@ async function runBatch(env) {
       const detailResp = await fetchDetail(item);
       const merged = mergeData(item, detailResp);
       if (merged) {
-        const text = `【${merged.companyName} | ${merged.companyId}】主旨:${merged.subject} 說明:${merged.description}`;
+        const header = `【${merged.companyName} | ${merged.companyId}】`;
+        const text = `${header}主旨:${merged.subject} 說明:${merged.description}`;
         const llm = await rateWithLLM(text, env);
         const rating = llm.analysis ? parseRating(llm.analysis, text) : llm;
-        const message = llm.analysis ? `【${merged.companyName} | ${merged.companyId}】\n${llm.analysis}` : `${text}\n  ${rating.label}`;
+        // LLM 成功：抬頭＋分析；失敗兜底：抬頭＋評分＋公告裡的關鍵數字行（不貼全文）
+        const message = llm.analysis
+          ? `${header}\n${llm.analysis}`
+          : `${header}\n${rating.label}${figuresBlock(merged.description)}`;
         state.results.push({
           companyId: merged.companyId,
           companyName: merged.companyName,

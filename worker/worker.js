@@ -215,20 +215,24 @@ function extractFigures(description, max = 4) {
   return lines;
 }
 
-function figuresBlock(description) {
-  const lines = extractFigures(description, 4);
-  return lines.length ? '\n' + lines.map((l) => `· ${l}`).join('\n') : '';
-}
+// Telegram HTML 格式工具
+const tgE = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const mdBold = (s) => s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
 
 // ==================== Telegram ====================
 
-async function sendTelegram(text, env) {
+async function sendTelegram(text, env, isHtml = false) {
   if (!env.TELEGRAM_BOT_TOKEN) return;
   try {
     await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: env.TELEGRAM_CHAT_ID || DEFAULT_CHAT, text, disable_web_page_preview: true }),
+      body: JSON.stringify({
+        chat_id: env.TELEGRAM_CHAT_ID || DEFAULT_CHAT,
+        text,
+        disable_web_page_preview: true,
+        ...(isHtml ? { parse_mode: 'HTML' } : {}),
+      }),
     });
   } catch (e) {
     console.error('TG 推送失敗:', e.message);
@@ -331,10 +335,17 @@ async function runBatch(env) {
         const text = `${header}主旨:${merged.subject}` + (figures.length ? `\n關鍵數據:\n${figures.join('\n')}` : `\n說明:${merged.description}`);
         const llm = await rateWithLLM(text, env);
         const rating = llm.analysis ? parseRating(llm.analysis, text) : llm;
-        // LLM 成功：抬頭＋分析；失敗兜底：抬頭＋評分＋公告裡的關鍵數字行（不貼全文）
-        const message = llm.analysis
-          ? `${header}\n${llm.analysis}`
-          : `${header}\n${rating.label}${figuresBlock(merged.description)}`;
+        // 純文字版存檔
+        const figLines = extractFigures(merged.description, 4).map((l) => l.replace(/\s+/g, ' '));
+        const messagePlain = llm.analysis
+          ? `${header}\n${llm.analysis.trim()}`
+          : `${header}\n${rating.label}` + (figLines.length ? '\n' + figLines.map((l) => `· ${l}`).join('\n') : '');
+        // HTML 版發 Telegram：LLM 分析的 **粗體** 轉 <b>；兜底數字用等寬 <pre> 對齊
+        const messageHtml = llm.analysis
+          ? `${tgE(header)}\n${mdBold(tgE(llm.analysis.trim()))}`
+          : figLines.length
+            ? `${tgE(header)}\n${rating.label}\n<pre>${tgE(figLines.join('\n'))}</pre>`
+            : `${tgE(header)}\n${rating.label}`;
         state.results.push({
           companyId: merged.companyId,
           companyName: merged.companyName,
@@ -346,9 +357,9 @@ async function runBatch(env) {
           rating: rating.key,
           ratingLabel: rating.label,
           analysis: llm.analysis || '',
-          message,
+          message: messagePlain,
         });
-        await sendTelegram(message, env);
+        await sendTelegram(messageHtml, env, true);
         out(`✅ ${merged.companyName}(${merged.companyId}) ${rating.label}`);
       } else {
         out(`跳過（查無資料）: ${item.companyId}`);

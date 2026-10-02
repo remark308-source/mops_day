@@ -128,15 +128,17 @@ function mergeData(item, detailResponse) {
   if (detailResponse?.result?.data) detail = detailResponse.result.data;
   else if (detailResponse?.data) detail = detailResponse.data;
   else detail = detailResponse || {};
-  const detailData = Array.isArray(detail) ? detail : detail._raw || [];
+  // result.data 是「外層陣列包一筆欄位陣列」（[[...]]）：欄位 7=符合條款、9=說明
+  let row = [];
+  if (Array.isArray(detail)) row = Array.isArray(detail[0]) ? detail[0] : detail;
   return {
     companyId: item.companyId,
     companyName: item.companyAbbreviation,
     subject: item.subject,
     date: item.date,
     time: item.time,
-    clause: detailData[7] || detail.clause || '未提供',
-    description: detailData[9] || detail.description || '未提供',
+    clause: row[7] || detail.clause || '未提供',
+    description: row[9] || detail.description || '未提供',
   };
 }
 

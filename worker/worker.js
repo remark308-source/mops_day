@@ -198,9 +198,9 @@ function parseRating(analysis, text) {
   return ruleFallback(text);
 }
 
-// 從公告說明中抽出含關鍵數字的行（LLM 失敗時的精簡兜底用）
-function figuresBlock(description) {
-  if (!description) return '';
+// 從公告說明中抽出含關鍵數字的行（LLM 輸入精簡 + 失敗兜底訊息共用）
+function extractFigures(description, max = 4) {
+  if (!description) return [];
   const SKIP = /事實發生日|公司名稱|與公司關係|持股比例|發生緣由|因應措施|應敘明|查證|記者會|精華版|營運概況|財務報表|IFRS|證券交易法|基本資料|觀測站|路徑|自願性公告/;
   const HAS_NUM = /\d+(\.\d+)?\s*(%|％)|\d[\d,.]*\s*(億|百萬|仟萬|萬元)|營業收入|稅前淨利|本期淨利|每股盈餘/;
   const lines = [];
@@ -208,11 +208,16 @@ function figuresBlock(description) {
     const line = raw.trim().replace(/^\d+[.、]\s*/, '');
     if (line.length < 5 || SKIP.test(line)) continue;
     if (HAS_NUM.test(line)) {
-      lines.push(`· ${line}`);
-      if (lines.length >= 4) break;
+      lines.push(line);
+      if (lines.length >= max) break;
     }
   }
-  return lines.length ? '\n' + lines.join('\n') : '';
+  return lines;
+}
+
+function figuresBlock(description) {
+  const lines = extractFigures(description, 4);
+  return lines.length ? '\n' + lines.map((l) => `· ${l}`).join('\n') : '';
 }
 
 // ==================== Telegram ====================
@@ -321,7 +326,9 @@ async function runBatch(env) {
       const merged = mergeData(item, detailResp);
       if (merged) {
         const header = `【${merged.companyName} | ${merged.companyId}】`;
-        const text = `${header}主旨:${merged.subject} 說明:${merged.description}`;
+        // LLM 輸入精簡：主旨＋關鍵數字行（減少 token、避免免費模型逾時）
+        const figures = extractFigures(merged.description, 8);
+        const text = `${header}主旨:${merged.subject}` + (figures.length ? `\n關鍵數據:\n${figures.join('\n')}` : `\n說明:${merged.description}`);
         const llm = await rateWithLLM(text, env);
         const rating = llm.analysis ? parseRating(llm.analysis, text) : llm;
         // LLM 成功：抬頭＋分析；失敗兜底：抬頭＋評分＋公告裡的關鍵數字行（不貼全文）

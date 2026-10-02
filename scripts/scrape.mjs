@@ -218,51 +218,63 @@ const LLM_SYSTEM_PROMPT = `你是一個專業的台灣股票分析師。請分�
 - EPS大幅衰退 >20% =🟢`;
 
 async function rateWithLLM(messageText) {
-  // 模型鏈＋雙 key：免費模型上游經常滿載（429 是模型級的），一個模型失敗就換下一個
-  const models = (process.env.LLM_MODELS ||
+  // 供應商優先序：NaraRouter（agnes-3-flash）→ OpenRouter 兩個帳號（模型鏈輪換防 429）
+  const attempts = [];
+  if (process.env.LLM_API_KEY) {
+    attempts.push({
+      base: process.env.LLM_BASE_URL || 'https://router.bynara.id/v1',
+      model: process.env.LLM_MODEL || 'agnes-3-flash',
+      key: process.env.LLM_API_KEY,
+      label: 'nara',
+    });
+  }
+  const orBase = process.env.OPENROUTER_BASE || 'https://openrouter.ai/api/v1';
+  const orModels = (process.env.LLM_MODELS ||
     'qwen/qwen3.8-27b:free,inclusionai/ling-3.0-flash-sante:free,nvidia/nemotron-3-super-120b-a12b:free,google/gemma-4-26b-a4b-it:free')
     .split(',').map((s) => s.trim()).filter(Boolean);
-  const keys = [process.env.LLM_API_KEY, process.env.LLM_API_KEY_2].filter(Boolean);
-  if (keys.length === 0) return ruleFallback(messageText);
-  const base = process.env.LLM_BASE_URL || 'https://openrouter.ai/api/v1';
-
-  for (const model of models) {
-    for (let i = 0; i < keys.length; i++) {
-      try {
-        const res = await fetch(`${base}/chat/completions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${keys[i]}`,
-          },
-          body: JSON.stringify({
-            model,
-            messages: [
-              { role: 'system', content: LLM_SYSTEM_PROMPT },
-              { role: 'user', content: `請分析以下股票重大公告:${messageText}` },
-            ],
-          }),
-          signal: AbortSignal.timeout(120000),
-        });
-        const data = await res.json();
-        if (res.status === 429 || res.status === 402 || res.status === 404) {
-          console.log(`LLM ${model} (key ${i + 1}) → ${res.status}，換下一個`);
-          continue;
-        }
-        if (data.error) throw new Error(data.error.message || `HTTP ${res.status}`);
-        const analysis = data.choices?.[0]?.message?.content || '';
-        if (!analysis) {
-          console.error('LLM 回應為空，使用本地規則評分');
-          return ruleFallback(messageText);
-        }
-        console.log(`LLM 評分完成（${model}，key ${i + 1}）`);
-        return { analysis };
-      } catch (err) {
-        console.error(`LLM ${model} (key ${i + 1}) 調用異常(${err.message})`);
-      }
+  const orKeys = [process.env.LLM_API_KEY_2, process.env.LLM_API_KEY_3].filter(Boolean);
+  for (const model of orModels) {
+    for (const key of orKeys) {
+      attempts.push({ base: orBase, model, key, label: 'openrouter' });
     }
   }
-  console.error('所有模型/key 都失敗，使用本地規則評分');
+  if (attempts.length === 0) return ruleFallback(messageText);
+
+  for (const a of attempts) {
+    try {
+      const res = await fetch(`${a.base}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${a.key}`,
+        },
+        body: JSON.stringify({
+          model: a.model,
+          messages: [
+            { role: 'system', content: LLM_SYSTEM_PROMPT },
+            { role: 'user', content: `請分析以下股票重大公告:${messageText}` },
+          ],
+        }),
+        signal: AbortSignal.timeout(120000),
+      });
+      const data = await res.json();
+      if (res.status === 429 || res.status === 402 || res.status === 404) {
+        console.log(`LLM [${a.label}] ${a.model} → ${res.status}，換下一個供應商/模型`);
+        continue;
+      }
+      if (data.error) throw new Error(data.error.message || `HTTP ${res.status}`);
+      const analysis = data.choices?.[0]?.message?.content || '';
+      if (!analysis) {
+        console.error('LLM 回應為空，使用本地規則評分');
+        return ruleFallback(messageText);
+      }
+      console.log(`LLM 評分完成（[${a.label}] ${a.model}）`);
+      return { analysis };
+    } catch (err) {
+      console.error(`LLM [${a.label}] ${a.model} 調用異常(${err.message})`);
+    }
+  }
+  console.error('所有供應商都失敗，使用本地規則評分');
   return ruleFallback(messageText);
 }
 

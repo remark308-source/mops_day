@@ -145,41 +145,52 @@ function mergeData(item, detailResponse) {
 // ==================== LLM 評分 ====================
 
 async function rateWithLLM(text, env) {
-  // 模型鏈＋雙 key：免費模型上游經常滿載（429 是模型級的，換帳號沒用），
-  // 一個模型 429/402 就換下一個模型；key 也輪替
-  const models = (env.LLM_MODELS ||
+  // 供應商優先序：NaraRouter（agnes-3-flash）→ OpenRouter 兩個帳號（模型鏈輪換防 429）
+  const attempts = [];
+  if (env.LLM_API_KEY) {
+    attempts.push({
+      base: env.LLM_BASE_URL || 'https://router.bynara.id/v1',
+      model: env.LLM_MODEL || 'agnes-3-flash',
+      key: env.LLM_API_KEY,
+      label: 'nara',
+    });
+  }
+  const orBase = env.OPENROUTER_BASE || 'https://openrouter.ai/api/v1';
+  const orModels = (env.LLM_MODELS ||
     'qwen/qwen3.8-27b:free,inclusionai/ling-3.0-flash-sante:free,nvidia/nemotron-3-super-120b-a12b:free,google/gemma-4-26b-a4b-it:free')
     .split(',').map((s) => s.trim()).filter(Boolean);
-  const keys = [env.LLM_API_KEY, env.LLM_API_KEY_2].filter(Boolean);
-  if (keys.length === 0) return ruleFallback(text);
-  const base = env.LLM_BASE_URL || 'https://openrouter.ai/api/v1';
+  const orKeys = [env.LLM_API_KEY_2, env.LLM_API_KEY_3].filter(Boolean);
+  for (const model of orModels) {
+    for (const key of orKeys) {
+      attempts.push({ base: orBase, model, key, label: 'openrouter' });
+    }
+  }
+  if (attempts.length === 0) return ruleFallback(text);
 
-  for (const model of models) {
-    for (let i = 0; i < keys.length; i++) {
-      try {
-        const res = await fetch(`${base}/chat/completions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${keys[i]}` },
-          body: JSON.stringify({
-            model,
-            messages: [
-              { role: 'system', content: LLM_SYSTEM_PROMPT },
-              { role: 'user', content: `請分析以下股票重大公告:${text}` },
-            ],
-          }),
-          signal: AbortSignal.timeout(25000),
-        });
-        const d = await res.json();
-        if (res.status === 429 || res.status === 402 || res.status === 404) {
-          console.log(`LLM ${model} (key ${i + 1}) → ${res.status}，換下一個`);
-          continue;
-        }
-        if (d.error) throw new Error(d.error.message || `HTTP ${res.status}`);
-        const analysis = d.choices?.[0]?.message?.content || '';
-        if (analysis) return { analysis: analysis.trim() };
-      } catch (e) {
-        console.log(`LLM ${model} (key ${i + 1}) 失敗: ${e.message}`);
+  for (const a of attempts) {
+    try {
+      const res = await fetch(`${a.base}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${a.key}` },
+        body: JSON.stringify({
+          model: a.model,
+          messages: [
+            { role: 'system', content: LLM_SYSTEM_PROMPT },
+            { role: 'user', content: `請分析以下股票重大公告:${text}` },
+          ],
+        }),
+        signal: AbortSignal.timeout(25000),
+      });
+      const d = await res.json();
+      if (res.status === 429 || res.status === 402 || res.status === 404) {
+        console.log(`LLM [${a.label}] ${a.model} → ${res.status}，換下一個供應商/模型`);
+        continue;
       }
+      if (d.error) throw new Error(d.error.message || `HTTP ${res.status}`);
+      const analysis = d.choices?.[0]?.message?.content || '';
+      if (analysis) return { analysis: analysis.trim() };
+    } catch (e) {
+      console.log(`LLM [${a.label}] ${a.model} 失敗: ${e.message}`);
     }
   }
   return ruleFallback(text);

@@ -14,13 +14,15 @@ binding = "MOPS_KV"
 id = "6d8f21f2ab854453b757001622c89654"
 
 [vars]
-LLM_BASE_URL = "https://openrouter.ai/api/v1"
-LLM_MODEL = "qwen/qwen3.8-27b:free"
+LLM_BASE_URL = "https://router.bynara.id/v1"
+LLM_MODEL = "agnes-3-flash"
+LLM_MODELS = "qwen/qwen3.8-27b:free,inclusionai/ling-3.0-flash-sante:free,nvidia/nemotron-3-super-120b-a12b:free,google/gemma-4-26b-a4b-it:free"
 
 # Secrets（Dashboard → Settings → Variables → 加密）：
+#   LLM_API_KEY          # NaraRouter 的 Key（sk-nry- 開頭）——優先使用
+#   LLM_API_KEY_2        # OpenRouter 帳號1的 Key（sk-or-v1- 開頭）
+#   LLM_API_KEY_3        # OpenRouter 帳號2的 Key（sk-or-v1- 開頭）
 #   TELEGRAM_BOT_TOKEN
-#   LLM_API_KEY          # OpenRouter 帳號1的 Key（sk-or-v1- 開頭）
-#   LLM_API_KEY_2        # 可選，OpenRouter 帳號2的 Key（帳號1額度用完自動切換）
 #   GITHUB_TOKEN        # 需要 repo scope（contents:write）
 #   TELEGRAM_CHAT_ID    # 可選，預設 -1003333218073
 #   CRON_SECRET         # 可選，保護 /run 手動觸發

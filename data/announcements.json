@@ -486,6 +486,137 @@
     "2026-10-10": [],
     "2026-10-11": [],
     "2026-10-12": [],
-    "2026-10-13": []
+    "2026-10-13": [
+      {
+        "companyId": "2880",
+        "companyName": "華南金",
+        "date": "115/10/13",
+        "time": "17:49",
+        "subject": "公告本公司115年9月份自結盈餘",
+        "clause": "未提供",
+        "description": "未提供",
+        "rating": "yellow",
+        "ratingLabel": "🟡 一般觀望",
+        "analysis": "",
+        "message": "【華南金 | 2880】主旨:公告本公司115年9月份自結盈餘 說明:未提供\n  🟡 一般觀望"
+      },
+      {
+        "companyId": "2722",
+        "companyName": "夏都",
+        "date": "115/10/13",
+        "time": "17:41",
+        "subject": "公告本公司115年09月自結合併損益",
+        "clause": "未提供",
+        "description": "未提供",
+        "rating": "yellow",
+        "ratingLabel": "🟡 一般觀望",
+        "analysis": "",
+        "message": "【夏都 | 2722】主旨:公告本公司115年09月自結合併損益 說明:未提供\n  🟡 一般觀望"
+      },
+      {
+        "companyId": "6151",
+        "companyName": "晉倫",
+        "date": "115/10/13",
+        "time": "17:29",
+        "subject": "公告本公司115年09月份之自結損益狀況",
+        "clause": "未提供",
+        "description": "未提供",
+        "rating": "yellow",
+        "ratingLabel": "🟡 一般觀望",
+        "analysis": "",
+        "message": "【晉倫 | 6151】主旨:公告本公司115年09月份之自結損益狀況 說明:未提供\n  🟡 一般觀望"
+      },
+      {
+        "companyId": "8404",
+        "companyName": "百和興業-KY",
+        "date": "115/10/13",
+        "time": "17:20",
+        "subject": "公告本公司115年9月份自結合併損益相關資訊",
+        "clause": "未提供",
+        "description": "未提供",
+        "rating": "yellow",
+        "ratingLabel": "🟡 一般觀望",
+        "analysis": "",
+        "message": "【百和興業-KY | 8404】主旨:公告本公司115年9月份自結合併損益相關資訊 說明:未提供\n  🟡 一般觀望"
+      },
+      {
+        "companyId": "2885",
+        "companyName": "元大金",
+        "date": "115/10/13",
+        "time": "17:15",
+        "subject": "元大金控公告115年9月份自結合併損益",
+        "clause": "未提供",
+        "description": "未提供",
+        "rating": "yellow",
+        "ratingLabel": "🟡 一般觀望",
+        "analysis": "",
+        "message": "【元大金 | 2885】主旨:元大金控公告115年9月份自結合併損益 說明:未提供\n  🟡 一般觀望"
+      },
+      {
+        "companyId": "5443",
+        "companyName": "均豪",
+        "date": "115/10/13",
+        "time": "16:44",
+        "subject": "公告本公司115年第3季自結合併損益",
+        "clause": "未提供",
+        "description": "未提供",
+        "rating": "yellow",
+        "ratingLabel": "🟡 一般觀望",
+        "analysis": "",
+        "message": "【均豪 | 5443】主旨:公告本公司115年第3季自結合併損益 說明:未提供\n  🟡 一般觀望"
+      },
+      {
+        "companyId": "2467",
+        "companyName": "志聖",
+        "date": "115/10/13",
+        "time": "16:25",
+        "subject": "公告本公司115年Q3累計合併稅後自結損益",
+        "clause": "未提供",
+        "description": "未提供",
+        "rating": "yellow",
+        "ratingLabel": "🟡 一般觀望",
+        "analysis": "",
+        "message": "【志聖 | 2467】主旨:公告本公司115年Q3累計合併稅後自結損益 說明:未提供\n  🟡 一般觀望"
+      },
+      {
+        "companyId": "6640",
+        "companyName": "均華",
+        "date": "115/10/13",
+        "time": "15:34",
+        "subject": "公告本公司115年第3季自結合併損益",
+        "clause": "未提供",
+        "description": "未提供",
+        "rating": "yellow",
+        "ratingLabel": "🟡 一般觀望",
+        "analysis": "",
+        "message": "【均華 | 6640】主旨:公告本公司115年第3季自結合併損益 說明:未提供\n  🟡 一般觀望"
+      },
+      {
+        "companyId": "9938",
+        "companyName": "百和",
+        "date": "115/10/13",
+        "time": "14:41",
+        "subject": "公告本公司115年9月份自結合併損益相關資訊",
+        "clause": "未提供",
+        "description": "未提供",
+        "rating": "yellow",
+        "ratingLabel": "🟡 一般觀望",
+        "analysis": "",
+        "message": "【百和 | 9938】主旨:公告本公司115年9月份自結合併損益相關資訊 說明:未提供\n  🟡 一般觀望"
+      },
+      {
+        "companyId": "3597",
+        "companyName": "映興",
+        "date": "115/10/13",
+        "time": "13:38",
+        "subject": "係因本公司有價證券於集中交易市場達公布注意交易資訊標準，\r\n故公布相關財務業務等重大訊息，以利投資人區別瞭解。",
+        "clause": "未提供",
+        "description": "未提供",
+        "rating": "yellow",
+        "ratingLabel": "🟡 一般觀望",
+        "analysis": "",
+        "message": "【映興 | 3597】主旨:係因本公司有價證券於集中交易市場達公布注意交易資訊標準，\r\n故公布相關財務業務等重大訊息，以利投資人區別瞭解。 說明:未提供\n  🟡 一般觀望"
+      }
+    ]
   }
 }
